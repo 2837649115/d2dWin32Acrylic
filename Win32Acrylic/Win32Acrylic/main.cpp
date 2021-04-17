@@ -253,7 +253,7 @@ void PaintHandler(HWND hWnd)
         }
         else
         {
-            CreateDeviceResources(hWnd, m_device3D, m_device, m_target, m_textFormat, rootVisual);
+            CreateDeviceResources(hWnd, m_device3D, m_device, m_target, &rootVisual);
         }
 
         VERIFY(ValidateRect(hWnd, nullptr));
@@ -262,7 +262,7 @@ void PaintHandler(HWND hWnd)
     {
         TRACE(L"PaintHandler failed 0x%X\n", e.result);
 
-        ReleaseDeviceResources(m_device3D);
+        ReleaseDeviceResources(&m_device3D);
     }
 }
 
@@ -284,10 +284,12 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
     case WM_CREATE:
         CreateHandler(hWnd);
 
-        CreateDeviceResources(hWnd, m_device3D, m_device, m_target, m_textFormat, rootVisual);
-        closeButton.CreateButton(m_device, 10.0F, 10.0F, 20.0F);
-        minButton.CreateButton(m_device, 40.0F, 10.0F, 20.0F);
-        button.CreateButton(m_device, 155.0F, 220.0F, 90.0F, 40.0F, 10.0F);
+        CreateDeviceResources(hWnd, m_device3D, m_device, m_target, &rootVisual);
+        closeButton.CreateButton(m_device);
+        minButton.CreateButton(m_device);
+        button.CreateButton(m_device, 155.0F, 220.0F, 90.0F, 40.0F, 8.0F);
+
+        WindowDraw(m_device, rootVisual, m_textFormat);
 
         HR(rootVisual->AddVisual(closeButton.ButtonVisual.Get(), false, nullptr));
         HR(rootVisual->AddVisual(minButton.ButtonVisual.Get(), false, nullptr));
@@ -314,6 +316,8 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
         {
             button.ButtonDown(m_device);
             downID = 3;
+            MessageBox(hWnd, L"this is a button!", L"提示", MB_OK);
+            SendMessage(hWnd, WM_LBUTTONUP, NULL, NULL);
         }
         else if (closeButton.IsMouseIn(MousePint.x, MousePint.y))
         {
@@ -338,32 +342,23 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
         break;
     case WM_LBUTTONUP:
 
-        if (button.IsMouseIn(LOWORD(lParam), HIWORD(lParam)))
+        switch (downID)
         {
+        case 3:
             button.ButtonUp(m_device);
             downID = 0;
+            break;
         }
-        else
-        {
-            switch (downID)
-            {
-            case 3:
-                button.ButtonUp(m_device);
-                downID = 0;
-            default:
-                break;
-            }
-            if (lButtonDown)
-            {
-                lButtonDown = FALSE;
 
-                if (Acrylic == FALSE)
-                {
-                    OnWindowAcrylic(hAcrylicWnd, ACCENT_ENABLE_ACRYLICBLURBEHIND);
-                    Acrylic = TRUE;
-                }
+        if (lButtonDown)
+        {
+            lButtonDown = FALSE;
+
+            if (Acrylic == FALSE)
+            {
+                OnWindowAcrylic(hAcrylicWnd, ACCENT_ENABLE_ACRYLICBLURBEHIND);
+                Acrylic = TRUE;
             }
-            
         }
         
         break;
@@ -399,8 +394,6 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 
                 moveID = 0;
                 break;
-            default:
-                break;
             }
 
             if (lButtonDown)
@@ -423,23 +416,13 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
                     Acrylic = FALSE;
                 }
 
-                HDWP hdwp = BeginDeferWindowPos(3);
-
                 GetWindowRect(hWnd, &rect);
                 rect.left += X - MousePint.x;
                 rect.top += Y - MousePint.y;
 
-                hdwp = DeferWindowPos(hdwp, hShadowWnd, NULL, rect.left, rect.top,
-                    0, 0, SWP_NOACTIVATE | SWP_NOZORDER |
-                    SWP_NOSIZE);
-                hdwp = DeferWindowPos(hdwp, hAcrylicWnd, NULL, rect.left, rect.top,
-                    0, 0, SWP_NOACTIVATE | SWP_NOZORDER |
-                    SWP_NOSIZE);
-                hdwp = DeferWindowPos(hdwp, hMainWnd, NULL, rect.left, rect.top,
-                    0, 0, SWP_NOACTIVATE | SWP_NOZORDER |
-                    SWP_NOSIZE);
-
-                EndDeferWindowPos(hdwp);
+				WindowRectChange(rect.left, rect.top,
+					0, 0,
+					SWP_NOSIZE);
             }
         }
         
@@ -453,10 +436,12 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
             Acrylic = TRUE;
         }
         break;
+	case WM_ACTIVATE:
+		break;
     case WM_RBUTTONDOWN:
         break;
     case WM_DESTROY:
-        ReleaseDeviceResources(m_device3D);
+        ReleaseDeviceResources(&m_device3D);
 
         PostQuitMessage(0);
         break;
@@ -487,6 +472,7 @@ LRESULT CALLBACK ShadowWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
     {
     case WM_DPICHANGED:
         DpiChangedHandler(hWnd, wParam, lParam);
+
         closeButton.ChangeDPI(m_device, 10.0F, 10.0F);
         minButton.ChangeDPI(m_device, 40.0F, 10.0F);
         button.ChangeDPI(m_device);
