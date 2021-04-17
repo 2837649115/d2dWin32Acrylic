@@ -33,6 +33,7 @@ ComPtr<IDCompositionVisual2> rootVisual;
 
 ComPtr<IDWriteTextFormat> m_textFormat;
 
+Label label;
 CloseButton closeButton;
 MinButton minButton;
 RoundedRectangleButton button;
@@ -142,8 +143,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     hInst = hInstance; // 将实例句柄存储在全局变量中
 
     GetDPI(&m_dpiX, &m_dpiY);
-    WindowWidth = static_cast<unsigned>(LogicalToPhysical(WindowWidth, m_dpiX));
-    WindowHeight = static_cast<unsigned>(LogicalToPhysical(WindowHeight, m_dpiY));
+    WindowWidth = static_cast<unsigned>(LogicalToPhysical(defaultWindowWidth, m_dpiX));
+    WindowHeight = static_cast<unsigned>(LogicalToPhysical(defaultWindowHeight, m_dpiY));
 
     //获取屏幕尺寸
     //获取窗体尺寸
@@ -229,6 +230,9 @@ void DpiChangedHandler(HWND hWnd, WPARAM const wparam, LPARAM const lparam)
     m_dpiX = LOWORD(wparam);
     m_dpiY = HIWORD(wparam);
 
+    WindowWidth = LogicalToPhysical(defaultWindowWidth, m_dpiX);
+    WindowHeight = LogicalToPhysical(defaultWindowHeight, m_dpiY);
+
     RECT const* suggested =
         reinterpret_cast<RECT const*>(lparam);
 
@@ -285,12 +289,14 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
         CreateHandler(hWnd);
 
         CreateDeviceResources(hWnd, m_device3D, m_device, m_target, &rootVisual);
+        label.CreateLabel(m_device, L"Tahoma", 40.0F, L"Direct2D Sample", 0.0F, 0.0F, defaultWindowWidth, defaultWindowHeight);
         closeButton.CreateButton(m_device);
         minButton.CreateButton(m_device);
         button.CreateButton(m_device, 155.0F, 220.0F, 90.0F, 40.0F, 8.0F);
 
-        WindowDraw(m_device, rootVisual, m_textFormat);
+        WindowDraw(m_device, rootVisual);
 
+        HR(rootVisual->AddVisual(label.LabelVisual.Get(), false, nullptr));
         HR(rootVisual->AddVisual(closeButton.ButtonVisual.Get(), false, nullptr));
         HR(rootVisual->AddVisual(minButton.ButtonVisual.Get(), false, nullptr));
         HR(rootVisual->AddVisual(button.ButtonVisual.Get(), false, nullptr));
@@ -473,6 +479,9 @@ LRESULT CALLBACK ShadowWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
     case WM_DPICHANGED:
         DpiChangedHandler(hWnd, wParam, lParam);
 
+        WindowDraw(m_device, rootVisual);
+
+        label.ChangeDPI(m_device);
         closeButton.ChangeDPI(m_device, 10.0F, 10.0F);
         minButton.ChangeDPI(m_device, 40.0F, 10.0F);
         button.ChangeDPI(m_device);
