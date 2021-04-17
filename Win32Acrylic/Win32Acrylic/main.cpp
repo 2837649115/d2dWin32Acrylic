@@ -7,11 +7,11 @@
 // 全局变量:
 HINSTANCE hInst;                                // 当前实例
 
-WCHAR szAppTitle[MAX_LOADSTRING];               // 背景窗口标题栏文本
+WCHAR szAppTitle[MAX_LOADSTRING];               // 窗口标题
 WCHAR szShadowWndClass[MAX_LOADSTRING];            //阴影窗口类名
-WCHAR szAcrylicWndClass[MAX_LOADSTRING];             // 背景窗口类名
-WCHAR szAcrylicWndTitle[MAX_LOADSTRING];            //阴影窗口标题栏文本
-WCHAR szMainWndTitle[MAX_LOADSTRING];               // 主窗口标题栏文本
+WCHAR szAcrylicWndTitle[MAX_LOADSTRING];            //亚克力窗口标题
+WCHAR szAcrylicWndClass[MAX_LOADSTRING];             // 亚克力窗口类名
+WCHAR szMainWndTitle[MAX_LOADSTRING];               // 主窗口标题
 WCHAR szMainWndClass[MAX_LOADSTRING];               // 主窗口类名
 
 HWND  hShadowWnd, hAcrylicWnd, hMainWnd;            //窗口句柄
