@@ -22,11 +22,11 @@
 using namespace Microsoft::WRL;
 using namespace D2D1;
 
-static float WindowWidth = 400.0f;
-static float WindowHeight = 300.0f;
+static FLOAT WindowWidth = 400.0f;
+static FLOAT WindowHeight = 300.0f;
 
-static float m_dpiX = 96.0f;
-static float m_dpiY = 96.0f;
+static FLOAT m_dpiX = 96.0f;
+static FLOAT m_dpiY = 96.0f;
 
 struct ComException
 {
@@ -59,13 +59,13 @@ static float LogicalToPhysical(T const pixel,
 
 struct RECTF
 {
-    float top;
-    float left;
-    float right;
-    float bottom;
+    FLOAT top;
+    FLOAT left;
+    FLOAT right;
+    FLOAT bottom;
 };
 
-void CreateDevice3D(ComPtr<ID3D11Device>& m_device3D)
+void CreateDevice3D(ComPtr<ID3D11Device> *m_device3D)
 {
     //ASSERT(!IsDeviceCreated(m_device3D));
 
@@ -84,7 +84,7 @@ void CreateDevice3D(ComPtr<ID3D11Device>& m_device3D)
         flags,
         nullptr, 0,
         D3D11_SDK_VERSION,
-        m_device3D.GetAddressOf(),
+        m_device3D->GetAddressOf(),
         nullptr,
         nullptr));
 
@@ -95,7 +95,7 @@ bool IsDeviceCreated(const ComPtr<ID3D11Device>& m_device3D)
     return m_device3D;
 }
 
-ComPtr<ID2D1Device> CreateDevice2D(ComPtr<ID3D11Device>& m_device3D)
+void CreateDevice2D(ComPtr<ID3D11Device>& m_device3D, ComPtr<ID2D1Device> *device2D)
 {
     ComPtr<IDXGIDevice3> deviceX;
     HR(m_device3D.As(&deviceX));
@@ -105,32 +105,24 @@ ComPtr<ID2D1Device> CreateDevice2D(ComPtr<ID3D11Device>& m_device3D)
     properties.debugLevel = D2D1_DEBUG_LEVEL_INFORMATION;
     #endif
 
-
-    ComPtr<ID2D1Device> device2D;
-
     HR(D2D1CreateDevice(deviceX.Get(),
         properties,
-        device2D.GetAddressOf()));
-
-    return device2D;
+        device2D->GetAddressOf()));
 }
 
 template <typename T>
-ComPtr<IDCompositionSurface> CreateSurface(ComPtr<IDCompositionDesktopDevice>const& m_device,
+void CreateSurface(ComPtr<IDCompositionDesktopDevice>const& m_device,
+    ComPtr<IDCompositionSurface> *surface,
     T const width, T const height)
 {
-    ComPtr<IDCompositionSurface> surface;
-
     HR(m_device->CreateSurface(static_cast<unsigned>(width),
         static_cast<unsigned>(height),
         DXGI_FORMAT_B8G8R8A8_UNORM,
         DXGI_ALPHA_MODE_PREMULTIPLIED,
-        surface.GetAddressOf()));
-
-    return surface;
+        surface->GetAddressOf()));
 }
 
-void CreateTextFormat(ComPtr<IDWriteTextFormat>& m_textFormat)
+void CreateTextFormat(ComPtr<IDWriteTextFormat>& textFormat, const WCHAR *fontName, FLOAT fontSize)
 {
     ComPtr<IDWriteFactory2> factory;
 
@@ -139,36 +131,45 @@ void CreateTextFormat(ComPtr<IDWriteTextFormat>& m_textFormat)
         __uuidof(factory),
         reinterpret_cast<IUnknown**>(factory.GetAddressOf())));
 
-    HR(factory->CreateTextFormat(L"Tahoma",
+    HR(factory->CreateTextFormat(fontName, //L"Tahoma"
         nullptr,
         DWRITE_FONT_WEIGHT_NORMAL,
         DWRITE_FONT_STYLE_NORMAL,
         DWRITE_FONT_STRETCH_NORMAL,
-        40.0f,
+        fontSize,
         L"",
-        m_textFormat.GetAddressOf()));
+        textFormat.GetAddressOf()));
 
-    HR(m_textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER));
-    HR(m_textFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER));
+    HR(textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER));
+    HR(textFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER));
 }
 
-void ReleaseDeviceResources(ComPtr<ID3D11Device>& m_device3D)
+void ReleaseDeviceResources(ComPtr<ID3D11Device> *m_device3D)
 {
-    m_device3D.Reset();
+    m_device3D->Reset();
 }
 
-ComPtr<IDCompositionVisual2> CreateVisual(ComPtr<IDCompositionDesktopDevice>const& m_device)
+void CreateVisual(ComPtr<IDCompositionDesktopDevice>const& m_device,
+    ComPtr<IDCompositionVisual2> *visual)
 {
-    ComPtr<IDCompositionVisual2> visual;
-
-    HR(m_device->CreateVisual(visual.GetAddressOf()));
-
-    return visual;
+    HR(m_device->CreateVisual(visual->GetAddressOf()));
 }
 
-void DrawCardFront(ComPtr<IDWriteTextFormat>const& m_textFormat,
-    ComPtr<IDCompositionSurface> const& surface)
+void D2DDrawText(ComPtr<IDCompositionDesktopDevice>const& m_device,
+    ComPtr<IDCompositionVisual2>& visual,
+    ComPtr<IDWriteTextFormat>& textFormat,
+    const WCHAR* string,
+    const FLOAT left = 0.0F, const FLOAT top = 0.0F,
+    const FLOAT right = 400.0F, const FLOAT bottom = 300.0F)
 {
+    ComPtr<IDCompositionSurface> surface;
+    CreateSurface(m_device,
+        &surface,
+        LogicalToPhysical(right, m_dpiX),
+        LogicalToPhysical(bottom, m_dpiY));
+
+    HR(visual->SetContent(surface.Get()));
+
     ComPtr<ID2D1DeviceContext> dc;
     POINT offset = {};
 
@@ -192,11 +193,10 @@ void DrawCardFront(ComPtr<IDWriteTextFormat>const& m_textFormat,
     HR(dc->CreateSolidColorBrush(color,
         brush.GetAddressOf()));
 
-    const wchar_t* text = L"Direct2D Sample";
-    dc->DrawTextW(text, wcslen(text),
-        m_textFormat.Get(),
-        RectF(0.0F, 0.0F,
-            400.0F, 300.0F),
+    dc->DrawTextW(string, wcslen(string),
+        textFormat.Get(),
+        RectF(left, top,
+            right, bottom),
         brush.Get());
 
     HR(surface->EndDraw());
@@ -206,14 +206,14 @@ void CreateDeviceResources(HWND hWnd,
     ComPtr<ID3D11Device>& m_device3D,
     ComPtr<IDCompositionDesktopDevice>& m_device,
     ComPtr<IDCompositionTarget>& m_target,
-    ComPtr<IDWriteTextFormat>& m_textFormat,
-    ComPtr<IDCompositionVisual2>& rootVisual)
+    ComPtr<IDCompositionVisual2> *rootVisual)
 {
     ASSERT(!IsDeviceCreated(m_device3D));
 
-    CreateDevice3D(m_device3D);
+    CreateDevice3D(&m_device3D);
 
-    ComPtr<ID2D1Device> const device2D = CreateDevice2D(m_device3D);
+    ComPtr<ID2D1Device> device2D;
+    CreateDevice2D(m_device3D, &device2D);
 
     HR(DCompositionCreateDevice2(
         device2D.Get(),
@@ -224,37 +224,37 @@ void CreateDeviceResources(HWND hWnd,
         true,
         m_target.ReleaseAndGetAddressOf()));
 
-    CreateTextFormat(m_textFormat);
 
-    rootVisual = CreateVisual(m_device);
 
-    HR(m_target->SetRoot(rootVisual.Get()));
+    CreateVisual(m_device, rootVisual);
 
+    HR(m_target->SetRoot(rootVisual->Get()));
+    
     //ComPtr<ID2D1DeviceContext> dc;
-
     //HR(device2D->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE,
     //    dc.GetAddressOf()));
+}
 
+void WindowDraw(ComPtr<IDCompositionDesktopDevice>& m_device,
+    ComPtr<IDCompositionVisual2>& rootVisual,
+    ComPtr<IDWriteTextFormat>& m_textFormat)
+{
+    
 
-    ComPtr<IDCompositionVisual2> frontVisual = CreateVisual(m_device);
-    HR(frontVisual->SetOffsetX(0.0f));
-    HR(frontVisual->SetOffsetY(0.0f));
+    CreateTextFormat(m_textFormat, L"Tahoma", 40.0F);
+
+    ComPtr<IDCompositionVisual2>  frontVisual;
+    CreateVisual(m_device, &frontVisual);
 
     HR(rootVisual->AddVisual(frontVisual.Get(), false, nullptr));
 
-    ComPtr<IDCompositionSurface> surface =
-        CreateSurface(m_device,
-            LogicalToPhysical(400, m_dpiX),
-            LogicalToPhysical(300, m_dpiY));
+    ComPtr<IDCompositionSurface> surface;
+    CreateSurface(m_device,
+        &surface,
+        WindowWidth,
+        WindowHeight);
 
     HR(rootVisual->SetContent(surface.Get()));
-
-    ComPtr<IDCompositionSurface> frontSurface =
-        CreateSurface(m_device,
-            LogicalToPhysical(400, m_dpiX),
-            LogicalToPhysical(300, m_dpiY));
-
-    HR(frontVisual->SetContent(frontSurface.Get()));
 
     ComPtr<ID2D1DeviceContext> dc;
     POINT offset = {};
@@ -272,14 +272,24 @@ void CreateDeviceResources(HWND hWnd,
     // Draw something
     dc->Clear();
 
+    ComPtr<ID2D1SolidColorBrush> brush;
+    D2D1_COLOR_F const color = ColorF(0x506350,
+        0.2f); // alpha
+    HR(dc->CreateSolidColorBrush(color,
+        brush.GetAddressOf()));
+
+    D2D1_ROUNDED_RECT roundedRectangle1 = RoundedRect(RectF(1.0F, 1.0F, 398.0F, 298.0F),
+        10.0F, 10.0F);
+    dc->DrawRoundedRectangle(roundedRectangle1,
+        brush.Get(),
+        2.0F);
+
     HR(surface->EndDraw());
 
-    DrawCardFront(m_textFormat,
-        frontSurface);
-
-    //HR(m_device->Commit());
-
-    //HR(rootVisual->RemoveVisual(frontVisual.Get()));
+    D2DDrawText(m_device, frontVisual,
+        m_textFormat,
+        L"Direct2D Sample",
+        0.0F, 0.0F, 400.0F, 300.0F);
 
     HR(m_device->Commit());
 }
@@ -295,7 +305,7 @@ protected:
 public:
     ComPtr<IDCompositionVisual2> ButtonVisual;
     ComPtr<IDCompositionVisual2> ButtonDownVisual;
-
+	
     void CreateButton(ComPtr<IDCompositionDesktopDevice>& m_device,
        float left, float top,
         float diameter)
@@ -309,11 +319,11 @@ public:
         rect.right = rect.left + this->diameter;
         rect.bottom = rect.top + this->diameter;
 
-        ButtonVisual = CreateVisual(m_device);
+        CreateVisual(m_device, &ButtonVisual);
         HR(ButtonVisual->SetOffsetX(rect.left));
         HR(ButtonVisual->SetOffsetY(rect.top));
 
-        ButtonDownVisual = CreateVisual(m_device);
+        CreateVisual(m_device, &ButtonDownVisual);
 
         DrawButton(m_device);
         DrawButtonDown(m_device);
@@ -390,6 +400,10 @@ public:
 class  CloseButton : public RoundButton
 {
 public:
+	void CreateButton(ComPtr<IDCompositionDesktopDevice>& m_device)
+	{
+		__super::CreateButton(m_device, 10.0F, 10.0F, 20.0F);
+	}
 
     bool IsMouseIn(LONG X, LONG Y)
     {
@@ -412,10 +426,11 @@ public:
 
     void DrawButton(ComPtr<IDCompositionDesktopDevice>const& m_device)
     {
-        ComPtr<IDCompositionSurface> ButtonSurface =
-            CreateSurface(m_device,
-                diameter,
-                diameter);
+        ComPtr<IDCompositionSurface> ButtonSurface;
+        CreateSurface(m_device,
+            &ButtonSurface,
+            diameter,
+            diameter);
 
         HR(ButtonVisual->SetContent(ButtonSurface.Get()));
 
@@ -442,21 +457,35 @@ public:
         HR(dc->CreateSolidColorBrush(color,
             brush.GetAddressOf()));
 
-        D2D1_ELLIPSE ellipse = Ellipse(Point2F(10, 10),
-            10,
-            10);
+        D2D1_ELLIPSE ellipse = Ellipse(Point2F(10.0F, 10.0F),
+            9.0F,
+            9.0F);
         dc->FillEllipse(ellipse,
             brush.Get());
+
+        ComPtr<ID2D1SolidColorBrush> brush1;
+        D2D1_COLOR_F const color1 = ColorF(0xDF3C34,
+            1.0f); // alpha
+        HR(dc->CreateSolidColorBrush(color1,
+            brush1.GetAddressOf()));
+
+        D2D1_ELLIPSE ellipse1 = Ellipse(Point2F(10.0F, 10.0F),
+            9.0F,
+            9.0F);
+        dc->DrawEllipse(ellipse1,
+            brush1.Get(),
+            1.0F);
 
         HR(ButtonSurface->EndDraw());
     }
 
     void DrawButtonDown(ComPtr<IDCompositionDesktopDevice>const& m_device)
     {
-        ComPtr<IDCompositionSurface> ButtonDownSurface =
-            CreateSurface(m_device,
-                diameter,
-                diameter);
+        ComPtr<IDCompositionSurface> ButtonDownSurface;
+        CreateSurface(m_device,
+            &ButtonDownSurface,
+            diameter,
+            diameter);
 
         HR(ButtonDownVisual->SetContent(ButtonDownSurface.Get()));
 
@@ -510,6 +539,11 @@ class  MinButton : public RoundButton
 {
 public:
 
+	void CreateButton(ComPtr<IDCompositionDesktopDevice>& m_device)
+	{
+		__super::CreateButton(m_device, 40.0F, 10.0F, 20.0F);
+	}
+
     bool IsMouseIn(LONG X, LONG Y)
     {
         if (X > rect.left && X < rect.right && Y > rect.top && Y < rect.bottom)
@@ -531,8 +565,9 @@ public:
 
     void DrawButton(ComPtr<IDCompositionDesktopDevice>const& m_device)
     {
-        ComPtr<IDCompositionSurface> ButtonSurface =
+        ComPtr<IDCompositionSurface> ButtonSurface;
             CreateSurface(m_device,
+                &ButtonSurface,
                 diameter,
                 diameter);
 
@@ -561,19 +596,33 @@ public:
         HR(dc->CreateSolidColorBrush(color,
             brush.GetAddressOf()));
 
-        D2D1_ELLIPSE ellipse = Ellipse(Point2F(defaultRadius, defaultRadius),
-            defaultRadius,
-            defaultRadius);
+        D2D1_ELLIPSE ellipse = Ellipse(Point2F(10.0F, 10.0F),
+            9.0F,
+            9.0F);
         dc->FillEllipse(ellipse,
             brush.Get());
+
+        ComPtr<ID2D1SolidColorBrush> brush1;
+        D2D1_COLOR_F const color1 = ColorF(0xDE9A0A,
+            1.0f); // alpha
+        HR(dc->CreateSolidColorBrush(color1,
+            brush1.GetAddressOf()));
+
+        D2D1_ELLIPSE ellipse1 = Ellipse(Point2F(10.0F, 10.0F),
+            9.0F,
+            9.0F);
+        dc->DrawEllipse(ellipse1,
+            brush1.Get(),
+            1.0F);
 
         HR(ButtonSurface->EndDraw());
     }
 
     void DrawButtonDown(ComPtr<IDCompositionDesktopDevice>const& m_device)
     {
-        ComPtr<IDCompositionSurface> ButtonDownSurface =
+        ComPtr<IDCompositionSurface> ButtonDownSurface;
             CreateSurface(m_device,
+                &ButtonDownSurface,
                 diameter,
                 diameter);
 
@@ -602,8 +651,8 @@ public:
         HR(dc->CreateSolidColorBrush(color,
             brush.GetAddressOf()));
 
-        dc->DrawLine(Point2F(5, defaultRadius),
-            Point2F(15, defaultRadius),
+        dc->DrawLine(Point2F(5.0F, 10.0F),
+            Point2F(15.0F, 10.0F),
             brush.Get(),
             2.0F);
 
@@ -627,11 +676,11 @@ private:
     float defaultWidth, defaultHeight, width, height;
     float defaultDiameter, diameter;
 
-    ComPtr<IDWriteTextFormat> m_textFormat;
+    ComPtr<IDWriteTextFormat> textFormat;
 public:
     ComPtr<IDCompositionVisual2> ButtonVisual;
     ComPtr<IDCompositionVisual2> ButtonDownVisual;
-    ComPtr<IDCompositionVisual2> LabelVisual;
+    ComPtr<IDCompositionVisual2> textVisual;
 
     void CreateButton(ComPtr<IDCompositionDesktopDevice>const& m_device,
         float left, float top,
@@ -657,33 +706,24 @@ public:
         defaultDiameter = diameter;
         this->diameter = (unsigned)LogicalToPhysical(diameter, m_dpiX);
 
-        ButtonVisual = CreateVisual(m_device);
+        CreateVisual(m_device, &ButtonVisual);
         HR(ButtonVisual->SetOffsetX(rect.left));
         HR(ButtonVisual->SetOffsetY(rect.top));
 
-        ButtonDownVisual = CreateVisual(m_device);
+        CreateVisual(m_device, &textVisual);
+        CreateVisual(m_device, &ButtonDownVisual);
+        
+        CreateTextFormat(textFormat, L"Tahoma", 22.0F);
 
-        ComPtr<IDWriteFactory2> factory;
+        DrawButton(m_device);
 
-            HR(DWriteCreateFactory(
-                DWRITE_FACTORY_TYPE_SHARED,
-                __uuidof(factory),
-                reinterpret_cast<IUnknown**>(factory.GetAddressOf())));
+        D2DDrawText(m_device,textVisual, textFormat,
+            L"OK",
+            0.0F, 0.0F, defaultWidth, defaultHeight);
 
-            HR(factory->CreateTextFormat(L"Tahoma",
-                nullptr,
-                DWRITE_FONT_WEIGHT_NORMAL,
-                DWRITE_FONT_STYLE_NORMAL,
-                DWRITE_FONT_STRETCH_NORMAL,
-                20.0f,
-                L"",
-                m_textFormat.GetAddressOf()));
+        DrawButtonDown(m_device);
 
-            HR(m_textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER));
-            HR(m_textFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER)); 
-            
-            DrawButton(m_device);
-            DrawButtonDown(m_device);
+        HR(ButtonVisual->AddVisual(textVisual.Get(), false, nullptr));
     }
     
     bool IsMouseIn(LONG X, LONG Y)
@@ -710,15 +750,21 @@ public:
         HR(ButtonVisual->SetOffsetY(rect.top));
 
         DrawButton(m_device);
+
+        D2DDrawText(m_device, textVisual, textFormat,
+            L"OK",
+            0.0F, 0.0F, defaultWidth, defaultHeight);
+
         DrawButtonDown(m_device);
     }
 
     void DrawButton(ComPtr<IDCompositionDesktopDevice>const& m_device)
     {
-        ComPtr<IDCompositionSurface> ButtonSurface =
-            CreateSurface(m_device,
-                width,
-                height);
+        ComPtr<IDCompositionSurface> ButtonSurface;
+        CreateSurface(m_device,
+            &ButtonSurface,
+            width,
+            height);
 
         HR(ButtonVisual->SetContent(ButtonSurface.Get()));
 
@@ -740,26 +786,26 @@ public:
         dc->Clear();
 
         ComPtr<ID2D1SolidColorBrush> brush;
-        D2D1_COLOR_F const color = ColorF(0x506350,
+        D2D1_COLOR_F const color = ColorF(0xC3C3C3,
             0.5f); // alpha
         HR(dc->CreateSolidColorBrush(color,
             brush.GetAddressOf()));
-
-        D2D1_ROUNDED_RECT roundedRectangle = RoundedRect(RectF(1.0F, 1.0F, defaultWidth -1.0F, defaultHeight -1.0F),
-            defaultDiameter , defaultDiameter );
-        dc->DrawRoundedRectangle(roundedRectangle,
-            brush.Get(),
-            2.0F);
+        
+        D2D1_ROUNDED_RECT roundedRectangle = RoundedRect(RectF(2.0F, 2.0F, defaultWidth - 2.0F, defaultHeight - 2.0F),
+            defaultDiameter, defaultDiameter);
+        dc->FillRoundedRectangle(roundedRectangle, brush.Get());
 
         ComPtr<ID2D1SolidColorBrush> brush1;
-        D2D1_COLOR_F const color1 = ColorF(0xC3C3C3,
+        D2D1_COLOR_F const color1 = ColorF(0x506350,
             0.5f); // alpha
         HR(dc->CreateSolidColorBrush(color1,
             brush1.GetAddressOf()));
-        
-        D2D1_ROUNDED_RECT roundedRectangle1 = RoundedRect(RectF(2.0F, 2.0F, defaultWidth - 2.0F, defaultHeight - 2.0F),
-            defaultDiameter, defaultDiameter);
-        dc->FillRoundedRectangle(roundedRectangle1, brush1.Get());
+
+        D2D1_ROUNDED_RECT roundedRectangle1 = RoundedRect(RectF(1.0F, 1.0F, defaultWidth -1.0F, defaultHeight -1.0F),
+            defaultDiameter , defaultDiameter );
+        dc->DrawRoundedRectangle(roundedRectangle1,
+            brush1.Get(),
+            2.0F);
 
         HR(ButtonSurface->EndDraw());
         
@@ -767,10 +813,11 @@ public:
 
     void DrawButtonDown(ComPtr<IDCompositionDesktopDevice>const& m_device)
     {
-        ComPtr<IDCompositionSurface> ButtonDownSurface =
-            CreateSurface(m_device,
-                width,
-                height);
+        ComPtr<IDCompositionSurface> ButtonDownSurface;
+        CreateSurface(m_device,
+            &ButtonDownSurface,
+            width,
+            height);
 
         HR(ButtonDownVisual->SetContent(ButtonDownSurface.Get()));
 
@@ -806,8 +853,9 @@ public:
 
     void ButtonDown(ComPtr<IDCompositionDesktopDevice>const& m_device)
     {
-        
+        HR(ButtonVisual->RemoveVisual(textVisual.Get()));
         HR(ButtonVisual->AddVisual(ButtonDownVisual.Get(), false, nullptr));
+        HR(ButtonVisual->AddVisual(textVisual.Get(), false, nullptr));
         HR(m_device->Commit());
     }
 
@@ -820,5 +868,8 @@ public:
 
 class Label
 {
+private:
 
 };
+
+
