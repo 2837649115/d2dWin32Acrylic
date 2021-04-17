@@ -22,8 +22,8 @@
 using namespace Microsoft::WRL;
 using namespace D2D1;
 
-static FLOAT WindowWidth = 400.0f;
-static FLOAT WindowHeight = 300.0f;
+static FLOAT defaultWindowWidth = 400.0f, WindowWidth;
+static FLOAT defaultWindowHeight = 300.0f, WindowHeight;
 
 static FLOAT m_dpiX = 96.0f;
 static FLOAT m_dpiY = 96.0f;
@@ -156,11 +156,11 @@ void CreateVisual(ComPtr<IDCompositionDesktopDevice>const& m_device,
 }
 
 void D2DDrawText(ComPtr<IDCompositionDesktopDevice>const& m_device,
-    ComPtr<IDCompositionVisual2>& visual,
-    ComPtr<IDWriteTextFormat>& textFormat,
+    ComPtr<IDCompositionVisual2>const& visual,
+    ComPtr<IDWriteTextFormat>const& textFormat,
     const WCHAR* string,
     const FLOAT left = 0.0F, const FLOAT top = 0.0F,
-    const FLOAT right = 400.0F, const FLOAT bottom = 300.0F)
+    const FLOAT right = defaultWindowWidth, const FLOAT bottom = defaultWindowHeight)
 {
     ComPtr<IDCompositionSurface> surface;
     CreateSurface(m_device,
@@ -235,19 +235,9 @@ void CreateDeviceResources(HWND hWnd,
     //    dc.GetAddressOf()));
 }
 
-void WindowDraw(ComPtr<IDCompositionDesktopDevice>& m_device,
-    ComPtr<IDCompositionVisual2>& rootVisual,
-    ComPtr<IDWriteTextFormat>& m_textFormat)
+void WindowDraw(ComPtr<IDCompositionDesktopDevice>const& m_device,
+    ComPtr<IDCompositionVisual2>const& rootVisual)
 {
-    
-
-    CreateTextFormat(m_textFormat, L"Tahoma", 40.0F);
-
-    ComPtr<IDCompositionVisual2>  frontVisual;
-    CreateVisual(m_device, &frontVisual);
-
-    HR(rootVisual->AddVisual(frontVisual.Get(), false, nullptr));
-
     ComPtr<IDCompositionSurface> surface;
     CreateSurface(m_device,
         &surface,
@@ -286,11 +276,6 @@ void WindowDraw(ComPtr<IDCompositionDesktopDevice>& m_device,
 
     HR(surface->EndDraw());
 
-    D2DDrawText(m_device, frontVisual,
-        m_textFormat,
-        L"Direct2D Sample",
-        0.0F, 0.0F, 400.0F, 300.0F);
-
     HR(m_device->Commit());
 }
 
@@ -306,7 +291,7 @@ public:
     ComPtr<IDCompositionVisual2> ButtonVisual;
     ComPtr<IDCompositionVisual2> ButtonDownVisual;
 	
-    void CreateButton(ComPtr<IDCompositionDesktopDevice>& m_device,
+    void CreateButton(ComPtr<IDCompositionDesktopDevice>const& m_device,
        float left, float top,
         float diameter)
     {
@@ -359,7 +344,7 @@ public:
         HR(m_device->Commit());
     }
 
-    void ChangeDPI(ComPtr<IDCompositionDesktopDevice>& m_device,
+    void ChangeDPI(ComPtr<IDCompositionDesktopDevice>const& m_device,
         float left, float top)
     {
         diameter = (unsigned)LogicalToPhysical(defaultRadius * 2, m_dpiX);
@@ -400,7 +385,7 @@ public:
 class  CloseButton : public RoundButton
 {
 public:
-	void CreateButton(ComPtr<IDCompositionDesktopDevice>& m_device)
+	void CreateButton(ComPtr<IDCompositionDesktopDevice>const& m_device)
 	{
 		__super::CreateButton(m_device, 10.0F, 10.0F, 20.0F);
 	}
@@ -539,7 +524,7 @@ class  MinButton : public RoundButton
 {
 public:
 
-	void CreateButton(ComPtr<IDCompositionDesktopDevice>& m_device)
+	void CreateButton(ComPtr<IDCompositionDesktopDevice>const& m_device)
 	{
 		__super::CreateButton(m_device, 40.0F, 10.0F, 20.0F);
 	}
@@ -683,9 +668,9 @@ public:
     ComPtr<IDCompositionVisual2> textVisual;
 
     void CreateButton(ComPtr<IDCompositionDesktopDevice>const& m_device,
-        float left, float top,
-        float width, float height,
-        float diameter )
+        FLOAT left, FLOAT top,
+        FLOAT width, FLOAT height,
+        FLOAT diameter )
     {
         defaultWidth = width;
         defaultHeight = height;
@@ -869,7 +854,42 @@ public:
 class Label
 {
 private:
+    ComPtr<IDWriteTextFormat> textFormat;
+    const WCHAR* string;
+    FLOAT left, top, right, bottom;
+public:
+    ComPtr<IDCompositionVisual2> LabelVisual;
 
+    void CreateLabel(ComPtr<IDCompositionDesktopDevice>const& m_device,
+        const WCHAR* fontName,
+        FLOAT fontsize,
+        const WCHAR* string,
+        FLOAT left, FLOAT top, FLOAT right, FLOAT bottom)
+    {
+        this->string = string;
+        this->left = left;
+        this->top = top;
+        this->right = right;
+        this->bottom = bottom;
+
+        CreateVisual(m_device, &LabelVisual);
+
+        CreateTextFormat(textFormat, fontName, fontsize);
+
+        D2DDrawText(m_device,
+            LabelVisual,
+            textFormat,
+            string,
+            left, top, right, bottom);
+    }
+    void ChangeDPI(ComPtr<IDCompositionDesktopDevice>const& m_device)
+    {
+        D2DDrawText(m_device,
+            LabelVisual,
+            textFormat,
+            string,
+            left, top, right, bottom);
+    }
 };
 
 
