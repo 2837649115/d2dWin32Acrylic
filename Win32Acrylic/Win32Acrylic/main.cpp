@@ -1,18 +1,21 @@
 ﻿// Win32Acrylic.cpp : 定义应用程序的入口点。
-
 #include "main.h"
 
-#define MAX_LOADSTRING 100
+extern NOTIFYICONDATA nid;		//托盘属性
+extern HMENU hMenu;			//托盘菜单
+
+//GdiPlus
+extern GdiplusStartupInput gdiplusStartupInput;
+extern ULONG_PTR pGdiToken;
+
+unsigned WindowWidth = 400.0F;
+unsigned WindowHeight = 300.0F;
+unsigned WindowRoundD = 20.0F;
+unsigned shadowWidth = 20;
+FLOAT m_dpi = 96.0F, beforeDpi = 96.0F;
 
 // 全局变量:
 HINSTANCE hInst;                                // 当前实例
-
-WCHAR szAppTitle[MAX_LOADSTRING];               // 窗口标题
-WCHAR szShadowWndClass[MAX_LOADSTRING];            //阴影窗口类名
-WCHAR szAcrylicWndTitle[MAX_LOADSTRING];            //亚克力窗口标题
-WCHAR szAcrylicWndClass[MAX_LOADSTRING];             // 亚克力窗口类名
-WCHAR szMainWndTitle[MAX_LOADSTRING];               // 主窗口标题
-WCHAR szMainWndClass[MAX_LOADSTRING];               // 主窗口类名
 
 HWND  hShadowWnd, hAcrylicWnd, hMainWnd;            //窗口句柄
 
@@ -38,6 +41,7 @@ CloseButton closeButton;
 MinButton minButton;
 RoundedRectangleButton button;
 
+
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
                      _In_ LPWSTR    lpCmdLine,
@@ -45,14 +49,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 {
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
-
-    //初始化全局字符串
-    LoadStringW(hInstance, IDS_APP_TITLE, szAppTitle, MAX_LOADSTRING);
-    LoadStringW(hInstance, IDS_DAWWND_CLASS, szShadowWndClass, MAX_LOADSTRING);
-    LoadStringW(hInstance, IDS_ACLWND_CLASS, szAcrylicWndClass, MAX_LOADSTRING);
-    LoadStringW(hInstance, IDS_DAWWND_TITLE, szAcrylicWndTitle, MAX_LOADSTRING);
-    LoadStringW(hInstance, IDS_EVTWND_TITLE, szMainWndTitle, MAX_LOADSTRING);
-    LoadStringW(hInstance, IDS_EVTWND_CLASS, szMainWndClass, MAX_LOADSTRING);
 
     // TODO: 在此处放置代码。
 
@@ -93,18 +89,18 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
     wcex.hbrBackground = CreateSolidBrush(RGB(0, 0, 0));    //(HBRUSH) GetStockObject(GRAY_BRUSH);
     wcex.lpszMenuName = nullptr;
-    wcex.lpszClassName = szShadowWndClass;
+    wcex.lpszClassName = DAWWND_CLASS;
     wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
 
     RegisterClassExW(&wcex);
 
     wcex.lpfnWndProc = AcrylicWndProc;
-    wcex.lpszClassName = szAcrylicWndClass;
+    wcex.lpszClassName = ACLWND_CLASS;
 
     RegisterClassExW(&wcex);
 
     wcex.lpfnWndProc = MainWndProc;
-    wcex.lpszClassName = szMainWndClass;
+    wcex.lpszClassName = MANWND_CLASS;
 
     return RegisterClassExW(&wcex);
 }
@@ -118,7 +114,7 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 //
 //        在此函数中，我们在全局变量中保存实例句柄并
 //        创建和显示主程序窗口。
-void GetDPI(float* m_dpiX, float* m_dpiY)
+void GetDPI(float* m_dpi)
 {
     //设置DPI感知模式
     SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
@@ -134,17 +130,18 @@ void GetDPI(float* m_dpiX, float* m_dpiY)
         &dpiX,
         &dpiY));
 
-    *m_dpiX = dpiX;
-    *m_dpiY = dpiY;
+    *m_dpi = dpiX;
 }
 
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
     hInst = hInstance; // 将实例句柄存储在全局变量中
 
-    GetDPI(&m_dpiX, &m_dpiY);
-    WindowWidth = static_cast<unsigned>(LogicalToPhysical(defaultWindowWidth, m_dpiX));
-    WindowHeight = static_cast<unsigned>(LogicalToPhysical(defaultWindowHeight, m_dpiY));
+    GetDPI(&m_dpi);
+    WindowWidth = LogicalToPhysical(WindowWidth, m_dpi, beforeDpi);
+    WindowHeight = LogicalToPhysical(WindowHeight, m_dpi, beforeDpi);
+    WindowRoundD = LogicalToPhysical(WindowRoundD, m_dpi, beforeDpi);
+    shadowWidth = LogicalToPhysical(shadowWidth, m_dpi, beforeDpi);
 
     //获取屏幕尺寸
     //获取窗体尺寸
@@ -155,39 +152,58 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     //窗口居中顶点坐标
     rect.left = (rect.right - WindowWidth) / 2;
     rect.top = (rect.bottom - WindowHeight) / 2;
-
     //创建窗口
-    hShadowWnd = CreateWindowEx(WS_EX_LAYERED | WS_EX_NOREDIRECTIONBITMAP, szShadowWndClass, szAppTitle, WS_POPUP,
-        rect.left, rect.top, WindowWidth, WindowHeight, nullptr, nullptr, hInstance, nullptr);
-    if (!hShadowWnd)
-        return FALSE;
-    //窗口圆角
-    SetWindowRgn(hShadowWnd, CreateRoundRectRgn(0, 0, WindowWidth, WindowHeight, 20, 20), FALSE);
+    VERIFY(CreateWindowEx(WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW,
+        DAWWND_CLASS, DAWWND_TITLE,
+        WS_POPUP,
+        rect.left - shadowWidth, rect.top - shadowWidth,
+        WindowWidth + shadowWidth * 2, WindowHeight + shadowWidth * 2,
+        nullptr,
+        nullptr,
+        hInstance,
+        nullptr));
 
-    hAcrylicWnd = CreateWindowEx(WS_EX_LAYERED,szAcrylicWndClass, szAcrylicWndTitle, WS_POPUP,
-        rect.left, rect.top, WindowWidth, WindowHeight, hShadowWnd, nullptr, hInstance, nullptr);
-    if (!hAcrylicWnd)
-        return FALSE;
+    VERIFY(CreateWindowEx(WS_EX_LAYERED | WS_EX_TRANSPARENT,
+        ACLWND_CLASS, ACLWND_TITLE,
+        WS_POPUP,
+        rect.left + 1, rect.top + 1,
+        WindowWidth - 2, WindowHeight - 2,
+        hShadowWnd,
+        nullptr,
+        hInstance,
+        nullptr));
+    
     /*------------------------------------*/
-    SetWindowAcrylic(hAcrylicWnd, ACCENT_ENABLE_ACRYLICBLURBEHIND, WindowWidth, WindowHeight, 20);
+    SetWindowAcrylic(hAcrylicWnd,
+        ACCENT_ENABLE_ACRYLICBLURBEHIND,
+        WindowWidth - 2, WindowHeight - 2,
+        WindowRoundD);
     /*------------------------------------*/
-    hMainWnd = CreateWindowEx(WS_EX_NOREDIRECTIONBITMAP, szMainWndClass, szMainWndTitle, WS_POPUP,
-       rect.left, rect.top, WindowWidth, WindowHeight, hAcrylicWnd, nullptr, hInstance, nullptr);
-    if (!hMainWnd)
-        return FALSE;
+    VERIFY(CreateWindowEx(WS_EX_NOREDIRECTIONBITMAP,
+        MANWND_CLASS, APP_TITLE,
+        WS_POPUP,
+        rect.left, rect.top,
+        WindowWidth, WindowHeight,
+        nullptr,
+        nullptr,
+        hInstance,
+        nullptr));
     //窗口圆角
-    SetWindowRgn(hMainWnd, CreateRoundRectRgn(0, 0, WindowWidth, WindowHeight, 20, 20), FALSE);
+    SetWindowRgn(hMainWnd,
+        CreateRoundRectRgn(0, 0, WindowWidth, WindowHeight, WindowRoundD, WindowRoundD),
+        FALSE);
 
     //显示窗口
-    ShowWindow(hAcrylicWnd, nCmdShow);
     ShowWindow(hShadowWnd, nCmdShow);
+    ShowWindow(hAcrylicWnd, nCmdShow);
     ShowWindow(hMainWnd, nCmdShow);
   
     //窗口更新
-    UpdateWindow(hAcrylicWnd);
     UpdateWindow(hShadowWnd);
+    UpdateWindow(hAcrylicWnd);
     UpdateWindow(hMainWnd);
 
+    InitTray(hInstance, hMainWnd);			//实例化托盘
     return TRUE;
 }
 
@@ -201,81 +217,100 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 //  WM_DESTROY  - 发送退出消息并返回
 //
 //
-void WindowRectChange(int left, int top,
+void SetWindowRect(int left, int top,
     int cx, int cy,
-    UINT uFlags = NULL)  //SWP_NOMOVE\SWP_NOSIZE
+    UINT uFlags = NULL)
 {
-    if (uFlags != SWP_NOSIZE)
-    {
-        SetWindowRgn(hShadowWnd, CreateRoundRectRgn(0, 0, cx, cy, 20, 20), FALSE);
-        SetWindowRgn(hAcrylicWnd, CreateRoundRectRgn(0, 0, cx, cy, 20, 20), FALSE);
-        SetWindowRgn(hMainWnd, CreateRoundRectRgn(0, 0, cx, cy, 20, 20), FALSE);
-    }
     HDWP hdwp = BeginDeferWindowPos(3);
+    switch (uFlags)
+    {
+    case NULL:
+        SetWindowRgn(hAcrylicWnd, CreateRoundRectRgn(0, 0, cx - 2, cy - 2, WindowRoundD, WindowRoundD), FALSE);
+        SetWindowRgn(hMainWnd, CreateRoundRectRgn(0, 0, cx, cy, WindowRoundD, WindowRoundD), FALSE);
 
-    hdwp = DeferWindowPos(hdwp, hShadowWnd, NULL, left, top,
-        cx, cy, SWP_NOACTIVATE | SWP_NOZORDER |
-        uFlags);
-    hdwp = DeferWindowPos(hdwp, hAcrylicWnd, NULL, left, top,
-        cx, cy, SWP_NOACTIVATE | SWP_NOZORDER |
-        uFlags);
-    hdwp = DeferWindowPos(hdwp, hMainWnd, NULL, left, top,
-        cx, cy, SWP_NOACTIVATE | SWP_NOZORDER |
-        uFlags);
+        hdwp = DeferWindowPos(hdwp, hShadowWnd, NULL, left - shadowWidth, top -shadowWidth,
+            cx + shadowWidth * 2, cy + shadowWidth * 2,
+            SWP_NOACTIVATE | SWP_NOZORDER);
+        hdwp = DeferWindowPos(hdwp, hAcrylicWnd, NULL, left + 1, top + 1,
+            cx - 2, cy - 2,
+            SWP_NOACTIVATE | SWP_NOZORDER);
+        hdwp = DeferWindowPos(hdwp, hMainWnd, NULL, left, top,
+            cx, cy,
+            SWP_NOACTIVATE | SWP_NOZORDER);
     
+        EndDeferWindowPos(hdwp);
+        break;
+    case SWP_NOMOVE:
+        SetWindowRgn(hAcrylicWnd, CreateRoundRectRgn(0, 0, cx - 2, cy - 2, WindowRoundD, WindowRoundD), FALSE);
+        SetWindowRgn(hMainWnd, CreateRoundRectRgn(0, 0, cx, cy, WindowRoundD, WindowRoundD), FALSE);
+
+        hdwp = DeferWindowPos(hdwp, hShadowWnd, NULL, 0, 0,
+            cx + shadowWidth * 2, cy + shadowWidth * 2, SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOMOVE);
+        hdwp = DeferWindowPos(hdwp, hAcrylicWnd, NULL, 0, 0,
+            cx - 2, cy - 2, SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOMOVE);
+        hdwp = DeferWindowPos(hdwp, hMainWnd, NULL, 0, 0,
+            cx, cy,
+            SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOMOVE);
+
+        EndDeferWindowPos(hdwp);
+        break;
+    case SWP_NOSIZE:
+        hdwp = DeferWindowPos(hdwp, hShadowWnd, NULL, left - shadowWidth, top - shadowWidth,
+            0, 0,
+            SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOSIZE);
+        hdwp = DeferWindowPos(hdwp, hAcrylicWnd, NULL, left + 1, top + 1,
+            0, 0,
+            SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOSIZE);
+        hdwp = DeferWindowPos(hdwp, hMainWnd, NULL, left, top,
+            0, 0,
+            SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOSIZE);
+
+        EndDeferWindowPos(hdwp);
+        break;
+    }
+}
+
+void ChangeWindowAfter()
+{
+    HDWP hdwp = BeginDeferWindowPos(2);
+
+    hdwp = DeferWindowPos(hdwp, hMainWnd, NULL, 0, 0,
+        0, 0, SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE);
+    hdwp = DeferWindowPos(hdwp, hShadowWnd, hMainWnd, 0, 0,
+        0, 0, SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE);
+
     EndDeferWindowPos(hdwp);
 }
+
 void DpiChangedHandler(HWND hWnd, WPARAM const wparam, LPARAM const lparam)
 {
-    m_dpiX = LOWORD(wparam);
-    m_dpiY = HIWORD(wparam);
-
-    WindowWidth = LogicalToPhysical(defaultWindowWidth, m_dpiX);
-    WindowHeight = LogicalToPhysical(defaultWindowHeight, m_dpiY);
-
+    beforeDpi = m_dpi;
+    
+    m_dpi = LOWORD(wparam);
+    //m_dpiY = HIWORD(wparam);
     RECT const* suggested =
         reinterpret_cast<RECT const*>(lparam);
 
-    WindowRectChange(suggested->left,
+    WindowWidth = suggested->right - suggested->left;
+    WindowHeight = suggested->bottom - suggested->top;
+    WindowRoundD = LogicalToPhysical(WindowRoundD, m_dpi, beforeDpi);
+    shadowWidth = LogicalToPhysical(shadowWidth, m_dpi, beforeDpi);
+
+    SetWindowRect(suggested->left,
         suggested->top,
-        suggested->right - suggested->left,
-        suggested->bottom - suggested->top );
+        WindowWidth,
+        WindowHeight);
 }
 
-void CreateHandler(HWND hWnd)
-{
-    
-}
 
-void PaintHandler(HWND hWnd)
-{
-    try
-    {
-        if (IsDeviceCreated(m_device3D))
-        {
-            HR(m_device3D->GetDeviceRemovedReason());
-        }
-        else
-        {
-            CreateDeviceResources(hWnd, m_device3D, m_device, m_target, &rootVisual);
-        }
+extern BOOL lButtonDown;
+extern POINT MousePint;
 
-        VERIFY(ValidateRect(hWnd, nullptr));
-    }
-    catch (ComException const& e)
-    {
-        TRACE(L"PaintHandler failed 0x%X\n", e.result);
+extern BOOL Acrylic;
+extern BOOL MouseIn;
+extern BOOL bHide;
+extern unsigned moveID, downID;
 
-        ReleaseDeviceResources(&m_device3D);
-    }
-}
-
-BOOL lButtonDown = FALSE;
-POINT MousePint;
-
-BOOL Acrylic = TRUE;
-BOOL MouseIn = FALSE;
-unsigned moveID = 0, downID = 0;    //响应事件的按钮ID
 LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     PAINTSTRUCT ps;
@@ -285,22 +320,14 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
     LONG X, Y;
     switch (message)
     {
+    case WM_ACTIVATEAPP:
+        ChangeWindowAfter();
+        break;
     case WM_CREATE:
+        hMainWnd = hWnd;
+
         CreateHandler(hWnd);
-
-        CreateDeviceResources(hWnd, m_device3D, m_device, m_target, &rootVisual);
-        label.CreateLabel(m_device, L"Tahoma", 40.0F, L"Direct2D Sample", 0.0F, 0.0F, defaultWindowWidth, defaultWindowHeight);
-        closeButton.CreateButton(m_device);
-        minButton.CreateButton(m_device);
-        button.CreateButton(m_device, 155.0F, 220.0F, 90.0F, 40.0F, 8.0F);
-
-        WindowDraw(m_device, rootVisual);
-
-        HR(rootVisual->AddVisual(label.LabelVisual.Get(), false, nullptr));
-        HR(rootVisual->AddVisual(closeButton.ButtonVisual.Get(), false, nullptr));
-        HR(rootVisual->AddVisual(minButton.ButtonVisual.Get(), false, nullptr));
-        HR(rootVisual->AddVisual(button.ButtonVisual.Get(), false, nullptr));
-        HR(m_device->Commit());
+        ChangeWindowAfter();
 
         break;
     case WM_PAINT:
@@ -316,7 +343,7 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
         MousePint.x = LOWORD(lParam);
         MousePint.y = HIWORD(lParam);
 
-        
+        //OffWindowAcrylic(hAcrylicWnd);
 
         if (button.IsMouseIn(MousePint.x, MousePint.y))
         {
@@ -327,10 +354,24 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
         }
         else if (closeButton.IsMouseIn(MousePint.x, MousePint.y))
         {
-            SendMessage(hWnd, WM_CLOSE, NULL, NULL);
+            //SendMessage(hWnd, WM_CLOSE, NULL, NULL);
+            ShowTrayMsg();
+            
+            ShowWindow(hWnd, SW_HIDE);
+            ShowWindow(hAcrylicWnd, SW_HIDE);
+            ShowWindow(hShadowWnd, SW_HIDE);
+
+            closeButton.ButtonUp(m_device);
+            minButton.ButtonUp(m_device);
+
+            HR(m_device->Commit());
+
+            bHide = TRUE;
+            moveID = 0;
         }
         else if (minButton.IsMouseIn(MousePint.x, MousePint.y))
         {
+            SendMessage(hMainWnd, WM_SYSCOMMAND, SC_MINIMIZE, NULL);
             SendMessage(hShadowWnd, WM_SYSCOMMAND, SC_MINIMIZE, NULL);
 
             closeButton.ButtonUp(m_device);
@@ -347,7 +388,7 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 
         break;
     case WM_LBUTTONUP:
-
+        
         switch (downID)
         {
         case 3:
@@ -426,7 +467,7 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
                 rect.left += X - MousePint.x;
                 rect.top += Y - MousePint.y;
 
-				WindowRectChange(rect.left, rect.top,
+				SetWindowRect(rect.left, rect.top,
 					0, 0,
 					SWP_NOSIZE);
             }
@@ -446,11 +487,71 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 		break;
     case WM_RBUTTONDOWN:
         break;
+    case WM_TRAY:
+        switch (lParam)
+        {
+        case WM_RBUTTONDOWN:
+        {
+            //获取鼠标坐标
+            POINT pt; GetCursorPos(&pt);
+
+            //解决在菜单外单击左键菜单不消失的问题
+            SetForegroundWindow(hWnd);
+
+            //使菜单某项变灰
+            //EnableMenuItem(hMenu, ID_SHOW, MF_GRAYED);	
+
+            //显示并获取选中的菜单
+            int cmd = TrackPopupMenu(hMenu, TPM_RETURNCMD, pt.x, pt.y, NULL, hWnd,
+                NULL);
+            if (cmd == ID_SHOW)
+                MessageBox(hWnd, APP_TIP, APP_NAME, MB_OK);
+            if (cmd == ID_EXIT)
+                PostMessage(hWnd, WM_DESTROY, NULL, NULL);
+        }
+        break;
+        case WM_LBUTTONDOWN:
+            if (bHide)
+            {
+                ShowWindow(hShadowWnd, SW_SHOW);
+                ShowWindow(hAcrylicWnd, SW_SHOW);
+                ShowWindow(hMainWnd, SW_SHOW);
+                bHide = FALSE;
+            }
+            else
+            {
+                SendMessage(hMainWnd, WM_SYSCOMMAND, SC_RESTORE, NULL);
+            }
+            //MessageBox(hWnd, APP_TIP, APP_NAME, MB_OK);
+            break;
+        case WM_LBUTTONDBLCLK:
+            break;
+        }
+        break;
+    case WM_DPICHANGED:
+        DpiChangedHandler(hWnd, wParam, lParam);
+
+        gdiPlusDraw(hShadowWnd);
+
+        WindowDraw(m_device, rootVisual);
+
+        label.ChangeDPI(m_device);
+        closeButton.ChangeDPI(m_device, 10.0F, 10.0F);
+        minButton.ChangeDPI(m_device, 40.0F, 10.0F);
+        button.ChangeDPI(m_device);
+        HR(m_device->Commit());
+        break;
     case WM_DESTROY:
-        ReleaseDeviceResources(&m_device3D);
+        ReleaseDeviceResources(m_device3D);
+
+        //窗口销毁时删除托盘
+        Shell_NotifyIcon(NIM_DELETE, &nid);
 
         PostQuitMessage(0);
         break;
+    case WM_SYSCOMMAND:
+        if(wParam == SC_RESTORE)
+            SendMessage(hShadowWnd, WM_SYSCOMMAND, SC_RESTORE, NULL);
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
     }
@@ -463,6 +564,9 @@ LRESULT CALLBACK AcrylicWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM l
 {
     switch (message)
     {
+    case WM_CREATE:
+        hAcrylicWnd = hWnd;
+        break;
     case WM_DESTROY:
         PostQuitMessage(0);
         break;
@@ -476,18 +580,15 @@ LRESULT CALLBACK ShadowWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 {
     switch (message)
     {
-    case WM_DPICHANGED:
-        DpiChangedHandler(hWnd, wParam, lParam);
+    case WM_CREATE:
+        hShadowWnd = hWnd;
 
-        WindowDraw(m_device, rootVisual);
-
-        label.ChangeDPI(m_device);
-        closeButton.ChangeDPI(m_device, 10.0F, 10.0F);
-        minButton.ChangeDPI(m_device, 40.0F, 10.0F);
-        button.ChangeDPI(m_device);
-        HR(m_device->Commit());
+        GdiplusStartup(&pGdiToken, &gdiplusStartupInput, NULL);  //初始化GDI+
+        gdiPlusDraw(hWnd);
         break;
     case WM_DESTROY:
+        GdiplusShutdown(pGdiToken);
+
         PostQuitMessage(0);
         break;
     default:

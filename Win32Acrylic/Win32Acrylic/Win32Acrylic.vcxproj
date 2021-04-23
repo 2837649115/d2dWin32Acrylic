@@ -18,10 +18,35 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Acrylic.h" />
+    <ClInclude Include="D2D.h" />
+    <ClInclude Include="Debug.h" />
+    <ClInclude Include="EventHandler.h" />
+    <ClInclude Include="GDI.h" />
+    <ClInclude Include="main.h" />
+    <ClInclude Include="resource.h" />
+    <ClInclude Include="Tray.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Win32Acrylic.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="small.ico" />
+    <Image Include="Win32Acrylic.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Acrylic.cpp" />
+    <ClCompile Include="D2D.cpp" />
+    <ClCompile Include="EventHandler.cpp" />
+    <ClCompile Include="GDI.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="Tray.cpp" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{aa499e32-4b7e-4178-b44c-abaa3e6e916f}</ProjectGuid>
+    <ProjectGuid>{c99769a0-67b8-4b6d-9532-c5c0015da80f}</ProjectGuid>
     <RootNamespace>Win32Acrylic</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
@@ -138,24 +163,6 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClInclude Include="Debug.h" />
-    <ClInclude Include="Draw.h" />
-    <ClInclude Include="resource.h" />
-    <ClInclude Include="main.h" />
-    <ClInclude Include="Acrylic.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="Acrylic.cpp" />
-    <ClCompile Include="main.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="Win32Acrylic.rc" />
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="small.ico" />
-    <Image Include="Win32Acrylic.ico" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

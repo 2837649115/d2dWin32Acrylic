@@ -2,15 +2,17 @@
 // Microsoft Visual C++ 生成的包含文件。
 // 供 Win32Acrylic.rc 使用
 //
+
+
 #define IDI_WIN32ACRYLIC                101
 #define IDI_SMALL                       102
 
-#define IDS_APP_TITLE                   111
-#define IDS_ACLWND_CLASS                112
-#define IDS_DAWWND_TITLE                113
-#define IDS_DAWWND_CLASS                114
-#define IDS_EVTWND_TITLE                115
-#define IDS_EVTWND_CLASS                116
+#define DAWWND_TITLE                TEXT("DrawWindow")
+#define DAWWND_CLASS                TEXT("DrawWindowClass")
+#define ACLWND_TITLE                TEXT("AcrylicWindow") 
+#define ACLWND_CLASS                TEXT("AcrylicWindowClass")
+#define APP_TITLE                   TEXT("Win32Acrylic")
+#define MANWND_CLASS                TEXT("EventWindowClass")
 
 // Next default values for new objects
 // 

@@ -15,29 +15,30 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="resource.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="Acrylic.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="main.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="resource.h">
+    <ClInclude Include="D2D.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="Debug.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="Draw.h">
+    <ClInclude Include="EventHandler.h">
       <Filter>头文件</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="main.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Acrylic.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
+    <ClInclude Include="GDI.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="main.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Tray.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Win32Acrylic.rc">
@@ -51,5 +52,25 @@
     <Image Include="small.ico">
       <Filter>资源文件</Filter>
     </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Acrylic.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="D2D.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="EventHandler.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="GDI.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Tray.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

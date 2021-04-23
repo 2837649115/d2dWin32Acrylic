@@ -71,6 +71,9 @@ SetWindowCompositionAttribute(
 
 typedef BOOL(WINAPI* pfnSetWindowCompositionAttribute)(HWND, WINDOWCOMPOSITIONATTRIBDATA*);
 
-void SetWindowAcrylic(HWND hWnd, ACCENT_STATE Date, int cx, int cy, int b);
+void SetWindowAcrylic(HWND hWnd,
+	ACCENT_STATE Date,
+	int cx, int cy,
+	int b);
 void OnWindowAcrylic(HWND hWnd, ACCENT_STATE Date);
 void OffWindowAcrylic(HWND hWnd);

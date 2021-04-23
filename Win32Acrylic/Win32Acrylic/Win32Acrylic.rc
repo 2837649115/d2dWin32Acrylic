@@ -56,26 +56,6 @@ IDI_WIN32ACRYLIC        ICON                    "Win32Acrylic.ico"
 
 IDI_SMALL               ICON                    "small.ico"
 
-
-/////////////////////////////////////////////////////////////////////////////
-//
-// String Table
-//
-
-STRINGTABLE
-BEGIN
-    IDS_APP_TITLE           "Win32Acrylic"
-END
-
-STRINGTABLE
-BEGIN
-    IDS_ACLWND_CLASS        "AcrylicWindowClass"
-    IDS_DAWWND_TITLE        "DrawWindow"
-    IDS_DAWWND_CLASS        "DrawWindowClass"
-    IDS_EVTWND_TITLE        "EventWindow"
-    IDS_EVTWND_CLASS        "EventWindowClass"
-END
-
 #endif    // 中文(简体，中国) resources
 /////////////////////////////////////////////////////////////////////////////
 
