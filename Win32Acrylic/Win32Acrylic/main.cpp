@@ -304,24 +304,27 @@ void DpiChangedHandler(HWND hWnd, WPARAM const wparam, LPARAM const lparam)
 
 
 extern BOOL lButtonDown;
-extern POINT MousePint;
+extern POINT MousePoint;
 
-extern BOOL Acrylic;
-extern BOOL MouseIn;
+extern BOOL bAcrylic;
+extern BOOL bMouseIn;
 extern BOOL bHide;
 extern unsigned moveID, downID;
-
+RECT wndRect;
 LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     PAINTSTRUCT ps;
     HDC hdc;
     
-    RECT rect;
+    
     LONG X, Y;
+    POINT pPos;
     switch (message)
     {
     case WM_ACTIVATEAPP:
         ChangeWindowAfter();
+        break;
+    case WM_ACTIVATE:
         break;
     case WM_CREATE:
         hMainWnd = hWnd;
@@ -338,21 +341,30 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
         EndPaint(hWnd, &ps);
         break;
     case WM_LBUTTONDOWN:
-        
 
-        MousePint.x = LOWORD(lParam);
-        MousePint.y = HIWORD(lParam);
+        if (!bMouseIn)
+        {
+            bMouseIn = TRUE;
 
-        //OffWindowAcrylic(hAcrylicWnd);
+            TRACKMOUSEEVENT tme;
+            tme.cbSize = sizeof(tme);
+            tme.dwFlags = TME_LEAVE;
+            tme.hwndTrack = hWnd;
+            tme.dwHoverTime = 0;
+            TrackMouseEvent(&tme);
+        }
 
-        if (button.IsMouseIn(MousePint.x, MousePint.y))
+        X = LOWORD(lParam);
+        Y = HIWORD(lParam);
+
+        if (button.IsMouseIn(X, Y))
         {
             button.ButtonDown(m_device);
             downID = 3;
-            MessageBox(hWnd, L"this is a button!", L"提示", MB_OK);
-            SendMessage(hWnd, WM_LBUTTONUP, NULL, NULL);
+            //MessageBox(hWnd, L"this is a button!", L"提示", MB_OK);
+            //SendMessage(hWnd, WM_LBUTTONUP, NULL, NULL);
         }
-        else if (closeButton.IsMouseIn(MousePint.x, MousePint.y))
+        else if (closeButton.IsMouseIn(X, Y))
         {
             //SendMessage(hWnd, WM_CLOSE, NULL, NULL);
             ShowTrayMsg();
@@ -369,7 +381,7 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
             bHide = TRUE;
             moveID = 0;
         }
-        else if (minButton.IsMouseIn(MousePint.x, MousePint.y))
+        else if (minButton.IsMouseIn(X, Y))
         {
             SendMessage(hMainWnd, WM_SYSCOMMAND, SC_MINIMIZE, NULL);
             SendMessage(hShadowWnd, WM_SYSCOMMAND, SC_MINIMIZE, NULL);
@@ -383,7 +395,11 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
         }
         else
         {
+            GetWindowRect(hWnd, &wndRect);
+            GetCursorPos(&MousePoint);
             lButtonDown = TRUE;
+            //设置鼠标捕获
+            SetCapture(hWnd);
         }
 
         break;
@@ -399,12 +415,14 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 
         if (lButtonDown)
         {
+            ReleaseCapture();
+
             lButtonDown = FALSE;
 
-            if (Acrylic == FALSE)
+            if (bAcrylic == FALSE)
             {
                 OnWindowAcrylic(hAcrylicWnd, ACCENT_ENABLE_ACRYLICBLURBEHIND);
-                Acrylic = TRUE;
+                bAcrylic = TRUE;
             }
         }
         
@@ -445,29 +463,17 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
 
             if (lButtonDown)
             {
-                if (!MouseIn)
-                {
-                    MouseIn = TRUE;
-
-                    TRACKMOUSEEVENT tme;
-                    tme.cbSize = sizeof(tme);
-                    tme.dwFlags = TME_LEAVE;
-                    tme.hwndTrack = hWnd;
-                    tme.dwHoverTime = 0;
-                    TrackMouseEvent(&tme);
-                }
-                
-                if (Acrylic)
+                if (bAcrylic)
                 {
                     OnWindowAcrylic(hAcrylicWnd, ACCENT_ENABLE_BLURBEHIND);
-                    Acrylic = FALSE;
+                    bAcrylic = FALSE;
                 }
 
-                GetWindowRect(hWnd, &rect);
-                rect.left += X - MousePint.x;
-                rect.top += Y - MousePint.y;
+                GetCursorPos(&pPos);
+                wndRect.right = pPos.x - MousePoint.x + wndRect.left;
+                wndRect.bottom = pPos.y - MousePoint.y + wndRect.top;
 
-				SetWindowRect(rect.left, rect.top,
+				SetWindowRect(wndRect.right, wndRect.bottom,
 					0, 0,
 					SWP_NOSIZE);
             }
@@ -475,16 +481,9 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
         
         break;
     case WM_MOUSELEAVE:
-        MouseIn = FALSE;
-        if (lButtonDown)
-        {
-            lButtonDown = FALSE;
-            OnWindowAcrylic(hAcrylicWnd, ACCENT_ENABLE_ACRYLICBLURBEHIND);
-            Acrylic = TRUE;
-        }
+        bMouseIn = FALSE;
+        SendMessage(hWnd, WM_LBUTTONUP, NULL, NULL);
         break;
-	case WM_ACTIVATE:
-		break;
     case WM_RBUTTONDOWN:
         break;
     case WM_TRAY:
@@ -550,7 +549,7 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
         PostQuitMessage(0);
         break;
     case WM_SYSCOMMAND:
-        if(wParam == SC_RESTORE)
+        if (wParam == SC_RESTORE)
             SendMessage(hShadowWnd, WM_SYSCOMMAND, SC_RESTORE, NULL);
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
@@ -582,8 +581,8 @@ LRESULT CALLBACK ShadowWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
     {
     case WM_CREATE:
         hShadowWnd = hWnd;
-
-        GdiplusStartup(&pGdiToken, &gdiplusStartupInput, NULL);  //初始化GDI+
+        //初始化GDI+
+        GdiplusStartup(&pGdiToken, &gdiplusStartupInput, NULL);  
         gdiPlusDraw(hWnd);
         break;
     case WM_DESTROY:

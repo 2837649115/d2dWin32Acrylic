@@ -3,13 +3,14 @@
 extern unsigned WindowWidth;
 extern unsigned WindowHeight;
 
-extern FLOAT m_dpiX;
-extern FLOAT m_dpiY;
+extern FLOAT m_dpi, beforeDpi;
 
 extern ComPtr<ID3D11Device> m_device3D;
 extern ComPtr<IDCompositionDesktopDevice> m_device;
 extern ComPtr<IDCompositionTarget> m_target;
 extern ComPtr<IDCompositionVisual2> rootVisual;
+
+extern HWND  hShadowWnd, hAcrylicWnd, hMainWnd;
 
 extern ComPtr<IDWriteTextFormat> m_textFormat;
 
@@ -21,10 +22,10 @@ extern RoundedRectangleButton button;
 
 
 BOOL lButtonDown = FALSE;
-POINT MousePint;
+POINT MousePoint;
 
-BOOL Acrylic = TRUE;
-BOOL MouseIn = FALSE;
+BOOL bAcrylic = TRUE;
+BOOL bMouseIn = FALSE;
 BOOL bHide = FALSE;
 unsigned moveID = 0, downID = 0;    //响应事件的按钮ID
 

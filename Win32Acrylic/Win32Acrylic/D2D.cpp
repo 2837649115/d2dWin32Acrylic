@@ -215,16 +215,16 @@ void WindowDraw(ComPtr<IDCompositionDesktopDevice>const& m_device,
     dc->Clear();
 
     ComPtr<ID2D1SolidColorBrush> brush;
-    D2D1_COLOR_F const color = ColorF(0x506350,
-        0.2f); // alpha
+    D2D1_COLOR_F const color = ColorF(0xA0A0A0,
+        0.6F); // alpha
     HR(dc->CreateSolidColorBrush(color,
         brush.GetAddressOf()));
 
-    D2D1_ROUNDED_RECT roundedRectangle1 = RoundedRect(RectF(1.0F, 1.0F, WindowWidth - 2, WindowHeight - 2),
+    D2D1_ROUNDED_RECT roundedRectangle1 = RoundedRect(RectF(1.0F, 1.0F, WindowWidth - 2.0F, WindowHeight - 2.0F),
         WindowRoundD / 2, WindowRoundD / 2);
     dc->DrawRoundedRectangle(roundedRectangle1,
         brush.Get(),
-        2.0F);
+        1.0F);
 
     HR(surface->EndDraw());
 
@@ -262,7 +262,7 @@ void WindowDraw(ComPtr<IDCompositionDesktopDevice>const& m_device,
         {
             X -= rect.left;
             Y -= rect.top;
-            if (radius >= sqrtf((radius - X) * (radius - X) + (radius - Y) * (radius - Y)))
+            if (radius * radius >= (radius - X) * (radius - X) + (radius - Y) * (radius - Y))
                 return TRUE;
             else
                 return FALSE;

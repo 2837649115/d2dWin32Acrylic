@@ -64,12 +64,25 @@ void gdiDrawShadow(Graphics& pGraphics)
 
     // 初始化渐变画刷
     Gdiplus::PathGradientBrush pathBrush(&ShadowPath);
-    pathBrush.SetCenterColor(Color(0x70, 0x00, 0x00, 0x00)); // 这里利用的是路径渐变画刷
-    Color colors[] = { Color(0, 0x20, 0x20, 0x20) };
+    pathBrush.SetCenterColor(Color(0xFF, 0x00, 0x00, 0x00)); // 这里利用的是路径渐变画刷
+    Color colors[] = { Color(0x00, 0x00, 0x00, 0x00) };
     int count = 1;
     pathBrush.SetSurroundColors(colors, &count);
+
+    REAL fac[] = {
+        0.0f,
+        0.16f,     //SurroundColors to CenterColor
+        0.9f,     //SurroundColors to CenterColor
+        1.0f };
+    REAL pos[] = {
+        0.0f,
+        0.3f,   //the boundary to the center
+        0.7f,   //the boundary to the center
+        1.0f };
+    pathBrush.SetBlend(fac, pos, 4);
+
     //对渐变效果进行调整，使其更加自然。这句的实际作用是对渐变效果进行缩放。参数是横纵两个坐标轴的缩放比例。
-    pathBrush.SetFocusScales(0.55f, 0.55f);
+    //pathBrush.SetFocusScales(0.55f, 0.55f);
 
     pGraphics.FillRegion(&pathBrush, &ShadowRegion);
 
